@@ -62,6 +62,75 @@ class LogParserService(BaseModuleService):
             "output": str(output_file),
         }
 
+    def reparse_evidence(
+        self,
+        records: list[dict[str, Any]],
+        rule_set: list[dict[str, Any]],
+        interrupt_after: int | None = None,
+    ) -> dict[str, Any]:
+        """用一份**确定的**历史规则集合重新解析给定原始日志记录。
+
+        与 ``parse_log_file`` 的区别：
+        * 不读取当前生效规则，只使用调用方传入的规则快照；
+        * 输入是报告固化的原始日志范围，不读写当前日志文件；
+        * ``interrupt_after`` 用于模拟/暴露复算中断，中断时不给出成功率。
+
+        返回的计数口径与质量诊断一致（命中规则和默认兜底都算解析成功），
+        因此同一份规则与同一段原始日志可以复现原报告的解析成功率。
+        """
+        total = len(records)
+        parsed_ok = 0
+        parse_errors = 0
+        rule_matched = 0
+        fallback_parsed = 0
+        errors: list[dict[str, Any]] = []
+
+        for index, rec in enumerate(records):
+            if interrupt_after is not None and index >= interrupt_after:
+                return {
+                    "interrupted": True,
+                    "rule_version": None,
+                    "parse_success_rate": None,
+                    "counts": {
+                        "total": total,
+                        "processed": index,
+                        "parsed_ok": parsed_ok,
+                        "parse_errors": parse_errors,
+                        "rule_matched": rule_matched,
+                        "fallback_parsed": fallback_parsed,
+                    },
+                    "message": f"复算在完成 {index}/{total} 行后中断",
+                }
+
+            result = self._apply_parsers(rec, rule_set)
+            if result.get("parse_error"):
+                parse_errors += 1
+                errors.append({
+                    "line_no": rec.get("line_no"),
+                    "offset": rec.get("offset"),
+                    "parse_error": result.get("parse_error"),
+                })
+            else:
+                parsed_ok += 1
+                if result.get("parser_rule"):
+                    rule_matched += 1
+                else:
+                    fallback_parsed += 1
+
+        return {
+            "interrupted": False,
+            "parse_success_rate": round(parsed_ok / max(total, 1) * 100, 2) if total else None,
+            "counts": {
+                "total": total,
+                "processed": total,
+                "parsed_ok": parsed_ok,
+                "parse_errors": parse_errors,
+                "rule_matched": rule_matched,
+                "fallback_parsed": fallback_parsed,
+            },
+            "errors": errors[:50],
+        }
+
     def _apply_parsers(self, rec: dict[str, Any], parsers: list[dict[str, Any]]) -> dict[str, Any]:
         raw = rec.get("raw", "")
         result = dict(rec)

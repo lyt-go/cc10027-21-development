@@ -69,6 +69,33 @@ npm run dev
 | 采样策略 | `sampling_rule` | 采样规则 | 规则编号、关联源、采样方式 |
 | 质量诊断 | `log_quality` | 诊断报告 | 报告编号、关联源、解析成功率 |
 
+## 质量诊断：历史对照与复算
+
+`质量诊断` 工作台（模块 `log_quality`）在通用列表之外，提供历史诊断对照的完整链路：
+
+- **报告留证**：每次诊断都会固化当时的解析规则快照、原始日志行号/偏移范围、内容摘要
+  和证据快照文件（`data/quality_evidence/`）。之后更新解析配置，旧报告仍能定位到原日志，
+  原数字也不会被改写。
+- **按版本查询**：`GET /api/log_quality/reports?source_key=&rule_version=&version_state=`，
+  `version_state` 取 `all|known|unknown`；占位文本（未标注 / 未知 / N/A 等）统一视为缺版本。
+- **定位原日志**：`GET /api/log_quality/reports/{report_id}/evidence?include_lines=true`，
+  返回行范围、偏移范围、内容摘要、证据快照路径，并给出快照是否存在。
+- **对照筛选**：`GET /api/log_quality/comparison-candidates` 列出同源报告两两组合；
+  `POST /api/log_quality/comparison/prepare` 核对被选中的两份报告，给出对照口径版本、
+  是否可比、以及需要补证复算的报告编号。版本不同或都缺版本时不会猜测当前配置。
+- **补证复算**：`POST /api/log_quality/reports/{report_id}/recompute`，入参可带
+  `rule_version` / `rule_code` / `peer_report_id` / `interrupt_after`。复算只使用历史
+  规则快照和报告固化的原始日志范围，明细写入 `data/exports/quality_recomputes.jsonl`，
+  带证据摘要、规则快照摘要和来源报告编号。
+- **中断保留待核**：`interrupt_after` 触发的中断会留下 `status=待核` 的明细，
+  不计入趋势；也可用 `GET /api/log_quality/recompute-details` 单独查阅。
+- **可复查趋势**：`GET /api/log_quality/trend?source_key=&rule_version=` 只用明确版本的
+  原值和已完成的补证复算取数，未补证/中断的报告进入 `excluded` 并保留原值。
+
+前端在「质量诊断」页底部的 **历史诊断对照与复算** 面板完成上述查询、勾选两份报告核对、
+复算、查看明细与趋势。首次启动会自动写入一组演示历史报告（`QL_DEMO_20260901` 缺版本、
+`QL_DEMO_20261120` 标注 `v1.2`），只写一次，不影响后续真实诊断。
+
 ## 约定
 
 - 全部模块共享`frontend/src/views/WorkbenchView.vue|tsx`和一套资源路由。

@@ -29,3 +29,19 @@ class EntryPayload(BaseModel):
 class ActionPayload(BaseModel):
     action: str
     remark: str | None = None
+
+
+class QualityComparisonPayload(BaseModel):
+    """历史诊断对照：被选中的两份报告编号与可选的目标规则版本。"""
+
+    report_ids: list[str] = Field(min_length=2, max_length=2)
+    rule_version: str | None = None
+
+
+class QualityRecomputePayload(BaseModel):
+    """复算入参：明确规则版本、可选规则编号、补证报告和中断位置。"""
+
+    rule_version: str | None = None
+    rule_code: str | None = None
+    peer_report_id: str | None = None
+    interrupt_after: int | None = Field(default=None, ge=0)

@@ -94,7 +94,8 @@ desktop.ini
 *.db
 *.pid
 *.seed
-data/
+# 只忽略仓库根目录下的运行期数据，避免吞掉 frontend/src/data 源码目录
+/data/
 
 # BEGIN S11 LOCAL SNAPSHOT EXCLUSIONS
 **/.git/**

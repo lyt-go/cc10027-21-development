@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ROUTERS
+from app.services.quality_demo import seed_quality_demo
 from app.store import store
 
 app = FastAPI(title="日志采集与事件追踪平台", version="1.0.0")
@@ -33,6 +34,9 @@ def overview() -> dict[str, object]:
     """运营概览：把各业务模块的待处理量汇总成看板卡片。"""
     return store.overview()
 
+
+# 质量诊断历史对照需要可核对的旧报告；演示数据只写一次，不影响真实诊断。
+seed_quality_demo()
 
 # 资源路由含 /api/{module}，必须放在 health / overview 之后注册，
 # 否则固定路径会被动态路径抢先匹配。

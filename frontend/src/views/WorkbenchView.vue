@@ -90,12 +90,15 @@
       <span>共 {{ total }} 条{{ meta.name }}记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <QualityComparisonPanel v-if="meta.key === 'log_quality'" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import QualityComparisonPanel from '@/views/QualityComparisonPanel.vue'
 import {
   createEntry,
   downloadEntries,
